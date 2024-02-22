@@ -1,0 +1,16 @@
+{:secrets-path     #env SECRETS_PATH
+ :secrets          #include #ref [:secrets-path]
+
+ :databases        {:db/geocodes {:engine        :jdbc
+                                  :jdbc-uri      "jdbc:postgresql://localhost:5432/geocoder?user=postgres&password=postgres"
+                                  :http-port     3002
+                                  :index-store   "data/geocodes/pg_indexes"
+                                  :lucene-store  "data/geocodes/pg_lucene"
+                                  :query-timeout 130000}}
+
+ :components/place {:lgd           "https://storage.googleapis.com/lgd_data_archive/10Jan2024.zip"
+                    :resource-path "resources/places/"
+                    :villages      "villages_by_blocks.csv"
+                    :pincodes      "pincode_villages.csv"
+                    :google-api    #ref [:secrets :google-api]
+                    :geocode-url   "https://maps.googleapis.com/maps/api/geocode/json"}}

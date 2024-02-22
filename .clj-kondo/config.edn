@@ -1,0 +1,1 @@
+{:lint-as {com.rpl.specter/transform clj-kondo.lint-as/def-catch-all}}

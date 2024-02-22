@@ -1,0 +1,4 @@
+export SECRETS_PATH="resources/dev/secrets.edn"
+export CLIP_SYSTEM="resources/system.edn"
+export GOOGLE_APPLICATION_CREDENTIALS="resources/gcp.json"
+export AWS_REGION="ap-south-1"

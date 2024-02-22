@@ -1,0 +1,7 @@
+{:components {:config      {:start (aero.core/read-config (clojure.java.io/resource "config.edn"))}
+              :db/geocodes {:start (geocoder.db/start!
+                                    (clojure.core/get-in (clip/ref :config)
+                                                         [:databases :db/geocodes]))}
+              :comp/places {:start (geocoder.places/init-india!
+                                    (:components/place (clip/ref :config))
+                                    (clip/ref :db/geocodes))}}}

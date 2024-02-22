@@ -1,0 +1,22 @@
+{
+    "calva.replConnectSequences": [
+      {
+        "projectType": "deps.edn",
+        "name": "geocoder",
+        "jackInEnv": {
+          "SECRETS_PATH": "resources/dev/secrets.edn",
+          "CLIP_SYSTEM": "resources/system.edn",
+          "GOOGLE_APPLICATION_CREDENTIALS": "resources/gcp.json",
+          "AWS_REGION": "ap-south-1"
+        },
+        "afterCLJReplJackInCode": "(require '[geocoder.core :as core] '[clojure.edn :as edn] '[clojure.java.io :as io] :reload) (core/start! (some->> \"system.edn\" io/resource slurp edn/read-string))",
+        "autoSelectForJackIn": true,
+        "projectRootPath": ["."],
+        "cljsType": "none",
+        "menuSelections": {
+          "cljAliases": ["run-x", "test"]
+        }
+      }
+    ]
+  }
+  
