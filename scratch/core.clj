@@ -1,6 +1,7 @@
 (ns scratch.core
   (:require [geocoder.core :as core]
             [geocoder.state :refer [system]]
+            [throttler.core :as thr]
             [xtdb.api :as xt]))
 
 (def root-config (:config system))
@@ -13,6 +14,13 @@
         {:find [(if p? '(pull ?e [*]) '?e)]
          :where ['[?e :entity/type :place]]})
        (map first)))
+
+(comment
+  (let [+# (thr/throttle-fn + 5 :second)]
+    (doseq [a (range 60)]
+      (->> (+# a a)
+           (println "hereh" (str (java.util.Date.))))))
+  :rcf)
 
 (comment
   (defonce maharashtra (core/by-state config "maharashtra")) ;; gets data from the csv
@@ -30,6 +38,8 @@
 
   (count (places node))
   :rcf)
+
+(/ 3000.0 60)
 
 (comment
   ;; Don't use, unless if the system has beem stopped.  

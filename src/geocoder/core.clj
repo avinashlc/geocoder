@@ -7,6 +7,7 @@
             [geocoder.lib.coords :as gc]
             [geocoder.state :refer [system]]
             [geocoder.util :as util]
+            [throttler.core :as thr]
             [geocoder.db]
             [juxt.clip.repl :as clip]
             [xtdb.api :as xt]))
@@ -92,7 +93,8 @@
   (let [data (->> csv-data (take total) (drop initial))
         partitioned (->> (partition interval data)
                          (map-indexed #(vector %1 %2)))
-        xf (partial inject-grid-geocode-info conf node)]
+        xf (partial inject-grid-geocode-info conf node)
+        xf# (thr/throttle-fn xf 30 :second)]
     (doseq [[n part] partitioned
             :let [iterc (str (+ (* n interval) initial) "_"
                              (+ (* (inc n) interval) initial))]]
@@ -100,7 +102,7 @@
       (doseq [item part]
         (if t?
           (println item)
-          (some->> item xf
+          (some->> item xf#
                    (conj [::xt/put])
                    vector
                    (xt/submit-tx node)))))))
