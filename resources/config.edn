@@ -1,12 +1,17 @@
 {:secrets-path     #env SECRETS_PATH
  :secrets          #include #ref [:secrets-path]
 
- :databases        {:db/geocodes {:engine        :jdbc
-                                  :jdbc-uri      "jdbc:postgresql://localhost:5432/geocoder?user=postgres&password=postgres"
-                                  :http-port     3002
-                                  :index-store   "data/geocodes/pg_indexes"
-                                  :lucene-store  "data/geocodes/pg_lucene"
-                                  :query-timeout 130000}}
+ :databases        {:db/geocodes-pg {:engine        :jdbc
+                                     :jdbc-uri      "jdbc:postgresql://localhost:5432/geocoder?user=postgres&password=postgres"
+                                     :http-port     3002
+                                     :index-store   "data/geocodes/pg_indexes"
+                                     :lucene-store  "data/geocodes/pg_lucene"
+                                     :query-timeout 130000}
+                    :db/geocodes    {:engine        :jdbc/sqlite
+                                     :index-store   "data/geocodes/index"
+                                     :jdbc-uri      "jdbc:sqlite:data/geocodes/geocodes.db"
+                                     :lucene-store  "data/geocodes/lucene"
+                                     :query-timeout 130000}}
 
  :components/place {:lgd           "https://storage.googleapis.com/lgd_data_archive/10Jan2024.zip"
                     :resource-path "resources/places/"

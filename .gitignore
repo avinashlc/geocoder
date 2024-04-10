@@ -54,3 +54,4 @@ my_*.sh
 /development/src/avinash/scratch*
 /development/src/avinash/stuff
 *resources/*/data-import/
+gcp.json

@@ -14,6 +14,8 @@
 (set! *warn-on-reflection* true)
 
 (defn inject-grid-geocode-info
+  "Returns the item with geolocation data merged to it, by making a http request to google's api
+   - here the **item** is simply parsed csv entity"
   [conf node item
    & {:keys [validator] :or {validator (constantly true)}}]
   (let [not-incl? #(some-> (util/ok-> string? (:state/name item))
@@ -50,7 +52,10 @@
           (when valid? tx)))
       (catch Exception e (println e)))))
 
-(defn by-state [conf state]
+(defn by-state
+  "Returns the Places info by parsing the CSV file for the given state name.
+   - note: This can be extended to work with more than state name"
+  [conf state]
   {:pre [(map? conf) (string? state)]}
   (let [model (fn [item]
                 (let [req [:state/code

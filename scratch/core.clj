@@ -15,11 +15,11 @@
        (map first)))
 
 (comment
-  (defonce maharashtra (core/by-state config "maharashtra"))
+  (defonce maharashtra (core/by-state config "maharashtra")) ;; gets data from the csv
   (->> maharashtra shuffle (take 5))
   (count maharashtra)
   ;; removes binding to r-eval
-  (ns-unmap *ns* 'maharashtra)    
+  ;; (ns-unmap *ns* 'maharashtra)    
 
   (core/csv->tx! config node
                  (shuffle maharashtra)
