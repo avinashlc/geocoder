@@ -2,9 +2,10 @@
   (:require [clj-http.client :as client]
             [clojure.data.json :as json]
             [com.rpl.specter :as spr]
-            [geocoder.util :as util]
             [geocoder.lib.helper :as helper]
+            [geocoder.util :as util]
             [malli.core :as m]
+            [throttler.core :as thr]
             [xtdb.api :as xt]))
 
 (def coords-spec
@@ -65,11 +66,13 @@
        k))
    loc))
 
-(defn geocode-get-req! [config params]
+(defn -geocode-get-req! [config params]
   (let [geocode-url (:geocode-url config)
         api-key (:google-api config)
         res (client/get geocode-url {:query-params (assoc params :key api-key)})]
     (-> res :body json/read-json)))
+
+(def geocode-get-req! (thr/throttle-fn -geocode-get-req! 30 :second))
 
 (defn geometry!
   "Returns a detail info about the address by making a get request to google's goecode endpoint"
