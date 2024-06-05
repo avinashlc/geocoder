@@ -184,10 +184,10 @@
         xf   (partial inject-grid-geocode-info conf node)
         xf#  (thr/throttle-fn xf 30 :second)]
     (doseq [[n part] data
-            :let     [iterc (str (+ (* n (or interval 1)) (or initial 0)) "_"
+            :let     [iterc (str (+ (* n (or interval 1)) (or initial 0)) " __ "
                                  (+ (* (inc n) (or interval 1)) (or initial 0)))]]
       (println "Iteration at: " iterc " time: " (t/time))
-      (println "Total no of items transacted: " (count (places node :count?)))
+      (println "no of items transacted so far: " (places node :count? true))
       (doseq [item part]
         (if t?
           (pprint/pprint item)
@@ -233,5 +233,6 @@
                                                      slurp
                                                      edn/read-string))
                                 data (parse! sys opts)]
-                            (fetch->tx! sys data opts)))
+                            (fetch->tx! sys data opts)
+                            (println "Total no of items transacted: " (places (:db/geocodes system) :count? true))))
     (System/exit 0)))
