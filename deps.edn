@@ -1,8 +1,6 @@
 {:paths   ["src" "resources" "config"]
- :deps    {org.clojure/clojure         {:mvn/version "1.11.1"}
-           org.clojure/core.async      {:mvn/version "1.6.681"}
+ :deps    {org.clojure/clojure         {:mvn/version "1.11.1"}           
            org.clojure/tools.namespace {:mvn/version "1.4.1"}
-           org.clojure/tools.logging   {:mvn/version "1.2.4"}
            org.clojure/tools.cli       {:mvn/version "1.0.219"}
            org.clojure/data.csv        {:mvn/version "1.0.1"}
 
@@ -24,11 +22,9 @@
            com.xtdb/xtdb-http-client   {:mvn/version "1.23.3"}
            org.postgresql/postgresql   {:mvn/version "42.2.18"}
            org.xerial/sqlite-jdbc      {:mvn/version "3.44.1.0"}
-           io.pedestal/pedestal.log    {:mvn/version "0.5.10"}
            dk.ative/docjure            {:mvn/version "1.19.0"}}
  :aliases {:run-m {:main-opts ["-m" "geocoder.core"]}
-           :run-x {:jvm-opts   ["-Xmx6g"
-                                "-Dclojure.tools.logging.factory=clojure.tools.logging.impl/slf4j-factory"]
+           :run-x {:jvm-opts   ["-Xmx6g"]
                    :ns-default geocoder.core}
            :build {:deps       {io.github.clojure/tools.build {:git/tag "v0.9.2"
                                                                :git/sha "fe6b140"}}

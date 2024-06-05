@@ -12,14 +12,7 @@
 (def config (:components/place root-config))
 (def node (:db/geocodes system))
 
-(defn places [node & {p? :pull?}]
-  (->> (xt/q
-        (xt/db node)
-        {:find [(if p? '(pull ?e [*]) '?e)]
-         :where ['[?e :entity/type :place]]})
-       (map first)))
-
-(comment
+(comment  
   ;; check, rate limit, if does only one print per second
   (let [+# (thr/throttle-fn + 1 :second)]
     (doseq [a (range 10)]
@@ -40,13 +33,13 @@
 
   (defonce maharashtra
     (sort-by :village/code
-             (util/parse-spreadsheet "pending_geocodes.xlsx"
+             (util/parse-spreadsheet ".stuff/pending_geocodes.xlsx"
                                      "Maharashtra"
                                      :row/fn parse-row)))
 
   (defonce rajasthan
     (->> (util/parse-spreadsheet
-          "pending_geocodes.xlsx" "Rajasthan"
+          ".stuff/pending_geocodes.xlsx" "Rajasthan"
           :row/fn parse-row)
          (sort-by :village/code)
          (take 10000)))
@@ -63,23 +56,14 @@
   ;; removes binding to r-eval
   ;; (ns-unmap *ns* 'maharashtra)  
 
-  (core/build->tx!
-   config node maharashtra
-   :start 0
-   :end 1000
-   :interval 5
-   :trial? true)
+  (core/fetch->tx!
+   system maharashtra
+   :end 2)
 
+  (first (core/places node :pull? true))
+  
+  (name :vi:vi)
 
-
-  (core/csv->tx! config node
-                 (shuffle maharashtra)
-                 :start 150
-                 :end 170
-                 :interval 5
-                 :trial? true)
-
-  (count (places node))
   :rcf)
 
 (/ 3000.0 60)

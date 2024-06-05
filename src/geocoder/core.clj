@@ -18,44 +18,119 @@
 
 (set! *warn-on-reflection* true)
 
+(defonce cli-options
+  [["-p" "--path SPREADSHEET_PATH" "Absoulte Path to the spreadsheet.\n\t\t\t\tIf not provided starts to work with the csv data it fetched."
+    :validate [#(.exists (io/file %))
+               "Spreadsheet doesn't exist for the given path"]]
+   ["-i" "--interval INTERVAL" "Splits the parsed data into mulitple sections based on the given interval"
+    :parse-fn #(int (parse-long %))
+    :validate [#(<= 0 %) "Must be a number greater than zero"]]
+   ["-S" "--state STATE" "State name in english"
+    :parse-fn (comp str/trim str/lower-case str)
+    :validate [#(false? (empty? (str %))) "State must be provided"]]
+   ["-s" "--start START_FROM" "Get items from this position of the parsed data"
+    :parse-fn #(-> % parse-long int)]
+   ["-e" "--end END_AT" "Stop Gettting items at this position of the parsed data"
+    :parse-fn #(-> % parse-long int)]
+   ["-t" "--trial?" "Does a trial run on the parsed data"]
+   ["-h" "--help"   "Prints this help summary"]])
+
+(defn start!
+  [config]
+  (println "\t\t\t >> Starting the system! <<")
+  (if-let [sys (not-empty
+                (when (nil? system)
+                  (clip/set-init! (fn [] config))
+                  (when (= (clip/start) :started)
+                    (alter-var-root #'system (constantly clip/system))
+                    system)))]
+    sys
+    (do
+      (println "Error Starting the system. TODO! better errors")
+      (System/exit 0))))
+
+(defn places
+  [node
+   & {p?   :pull?
+      c?   :count?
+      stc  :state/code
+      dic  :district/code
+      sdic :subdistrict/code
+      vic  :village/code
+      id   :xt/id}]
+  (let [res (xt/q
+             (xt/db node)
+             {:find  [(cond p? '(pull ?e [*])
+                            c? '(count ?e)
+                            :else '?e)]
+              :where (cond-> ['[?e :entity/type :place]
+                              '[?e :latitude ?la]
+                              '[?e :longitude ?lo]]
+                       stc  (conj ['?e :state/code stc])
+                       dic  (conj ['?e :district/code dic])
+                       sdic (conj ['?e :subdistrict/code sdic])
+                       vic  (conj ['?e :village/code vic])
+                       id   (conj ['?e :xt/id id]))})]
+    (cond
+      c? (ffirst res)
+      :else (map first res))))
+
+(defn update-code [item]
+  (let [m (fn [k]
+            (fn [v]
+              (if (keyword? v)
+                v
+                (keyword (str (name k) v)))))]
+    (-> item
+        (update :state/code       (m :st))
+        (update :district/code    (m :di))
+        (update :subdistrict/code (m :sdi))
+        (update :village/code     (m :vi)))))
+
 (defn inject-grid-geocode-info
   "Returns the item with geolocation data merged to it, by making a http request to google's api
    - here the **item** is simply parsed csv entity"
   [conf node item
    & {:keys [validator] :or {validator (constantly true)}}]
-  (let [not-incl? #(some-> (util/ok-> string? (:state/name item))
+  (let [item      (update-code item)
+        not-incl? #(some-> (util/ok-> string? (:state/name item))
                            str/lower-case
                            (str/includes? %)
                            false?)
-        ok?       (and (if node (not (gc/by-id node (or (:xt/id item) item))) true)
-                       (not-incl? "english")
+        in-db     (util/ok->
+                   (fn [v]
+                     (and (-> v :latitude number?)
+                          (-> v :longitude number?)))
+                   (some->> (assoc item :pull? true)
+                            (places node)
+                            first))
+        ok?       (and (not-incl? "english")
                        (not-incl? "state name")
                        (validator item))]
     (try
-      (when ok?
-        (let [address (->> ["India"
-                            (:state/name item)
-                            (:district/name item)
-                            (:subdistrict/name item)
-                            (:village/name item)]
-                           (remove nil?)
-                           (str/join ", "))
-              grid    (gc/indian-address->grid conf address 5)
-              tx      (-> item
-                          (assoc :latitude (:latitude grid)
-                                 :longitude (:longitude grid)
-                                 :proximity-grid/x (-> grid :grid/address :x)
-                                 :proximity-grid/y (-> grid :grid/address :y)
-                                 :proximity-grid/size (:grid/size grid))
-                          (update :entity/type #(or % :place))
-                          (update-vals #(if (string? %) (str/lower-case %) %))
-                          (update :xt/id #(or % (some->> (:village/code item) (str "vi") (keyword)))))
-              valid?  true]
-          (println {:msg "modeled tx"
-                    :tx tx
-                    :valid? valid?})
-          (when valid? tx)))
-      (catch Exception e (println e)))))
+      (if in-db
+        (println "Already fetched coords for " (:xt/id in-db))
+        (when ok?
+          (let [address (->> ["India"
+                              (:state/name item)
+                              (:district/name item)
+                              (:subdistrict/name item)
+                              (:village/name item)]
+                             (remove nil?)
+                             (str/join ", "))
+                grid    (gc/indian-address->grid conf address 5)]
+            (some-> item
+                    (assoc :latitude (:latitude grid)
+                           :longitude (:longitude grid)
+                           :proximity-grid/x (-> grid :grid/address :x)
+                           :proximity-grid/y (-> grid :grid/address :y)
+                           :proximity-grid/size (:grid/size grid))
+                    (update :entity/type #(or % :place))
+                    (update-vals #(if (string? %) (str/lower-case %) %))
+                    (update :xt/id #(or % (:village/code item)))))))
+      (catch Exception e
+        (println "Someting Went wrong " (.getMessage e))
+        (pprint/pprint e)))))
 
 (defn by-state
   "Returns the Places info by parsing the CSV file for the given state name.
@@ -88,65 +163,75 @@
                             :subdistrict/name
                             :village/name))))
 
-(defn build->tx!
+(defn fetch->tx!
   "1. Takes the parsed data 
    2. injects **grid and geocodes info** to the villages, by using *google's geocode api*
    3. Transact to XTdb"
-  [conf node data & {interval :interval initial :start total :end t? :trial?}]
-  ;; {:pre [(int? initial) (int? total) (int? interval)]}
-  (let [data (->> data (take total) (drop initial))
-        partitioned (->> (partition interval data)
-                         (map-indexed #(vector %1 %2)))
-        xf (partial inject-grid-geocode-info conf node)
-        xf# (thr/throttle-fn xf 30 :second)]
-    (doseq [[n part] partitioned
-            :let [iterc (str (+ (* n interval) initial) "_"
-                             (+ (* (inc n) interval) initial))]]
-      (println  "Iteration at: " iterc "\t" (t/time))
+  [sys data & {interval :interval initial :start total :end t? :trial? :as opts}]
+  (println "Fetchind data from Google's api for " (count data) " items. And the specification as below: ")  
+  (pprint/pprint opts)
+  (let [conf (some-> sys
+                     :config
+                     :components/place)
+        node (:db/geocodes system)
+        data (cond->> data
+               (number? total) (take total)
+               (number? initial) (drop initial))
+        data (cond->> data
+               (number? interval)       (partition-all interval)
+               (not (number? interval)) vector
+               :always                  (map-indexed #(vector %1 %2)))
+        xf   (partial inject-grid-geocode-info conf node)
+        xf#  (thr/throttle-fn xf 30 :second)]
+    (doseq [[n part] data
+            :let     [iterc (str (+ (* n (or interval 1)) (or initial 0)) "_"
+                                 (+ (* (inc n) (or interval 1)) (or initial 0)))]]
+      (println "Iteration at: " iterc " time: " (t/time))
+      (println "Total no of items transacted: " (count (places node :count?)))
       (doseq [item part]
         (if t?
           (pprint/pprint item)
           (some->> item xf#
                    (conj [::xt/put])
                    vector
-                   (xt/submit-tx node)))))))
+                   (xt/submit-tx node)))))
+    (println "Fetched and transacted to database!")))
 
-(defn start!
-  [config]
-  (println "\t\t\t >> Starting the system! <<")
-  (or (when (nil? system)
-        (clip/set-init! (fn [] config))
-        (when (= (clip/start) :started)
-          (alter-var-root #'system (constantly clip/system))
-          {:ok "started"}))
-      {:error "failed while runnig ```juxt.clip.repl/start```"}))
-
-(def cli-options
-  [["-p" "--path SPREADSHEET_PATH" "Absoulte Path to the spreadsheet.\n\t\t\t\tIf not provided starts to work with the csv data it fetched."
-    :validate [#(.exists (io/file %))
-               "Spreadsheet doesn't exist for the given path"]]
-   ["-i" "--interval INTERVAL" "Splits the parsed data into mulitple sections based on the given interval"
-    :parse-fn #(int (parse-long %))
-    :validate [#(<= 0 %) "Must be a number greater than zero"]]
-   ["-S" "--state STATE" "State name in english"]
-   ["-s" "--start START_FROM" "Get items from this position of the parsed data"
-    :parse-fn #(-> % parse-long int)]
-   ["-e" "--end END_AT" "Stop Gettting items at this position of the parsed data"
-    :parse-fn #(-> % parse-long int)]
-   ["-t" "--trial?" "Does a trial run on the parsed data"]
-   ["-h" "--help"   "Prints this help summary"]])
+(defn parse! [sys opts]
+  (println "Starting to parse data")
+  (let [conf (some-> sys
+                     :config
+                     :components/place)
+        data (cond
+               (:path opts) (let [row (fn parse-row [v]
+                                        (-> v
+                                            (update-keys (comp
+                                                          read-string
+                                                          #(str/replace % "-" "/")
+                                                          str))
+                                            (update-vals (fn [v] (if (number? v)
+                                                                   (str (int v))
+                                                                   v)))))]
+                              (->> (util/parse-spreadsheet (:path opts) (:state opts) :row/fn row)
+                                   (sort-by :village/code)))
+               :else  (by-state conf (:state opts)))]
+    (println "Data parsed successfully. count: " (count data))
+    data))
 
 (defn -main
   [& args]
-  {:pre [(.exists (io/file (io/resource "system.edn")))]}
-  (let [{opts :options
-         sum  :summary
-         err :errors} (parse-opts args cli-options)]
-    (start! (some->> (io/resource "system.edn")
-                     slurp
-                     edn/read-string))
+  {:pre [(.exists (io/file (io/resource (System/getenv "CLIP_SYSTEM"))))]}
+  (let [psd  (parse-opts args cli-options)
+        opts (:options psd)
+        err  (:erros psd)
+        summ (:summary psd)]
     (cond
-      (not-empty err) (println (str err "\n" sum))
-      (:help opts)    (do  (println "CLI SUMMARY:") (println sum "\n"))
-      :else           (println opts))
+      (not-empty err)     (println (str err "\n" summ))
+      (:help opts)        (do (println "CLI SUMMARY:") (println summ "\n"))
+      (not (:state opts)) (println "Error:\n- sState name must be provided via -S flag. run with -h flag for more information.")
+      :else               (let [sys (start! (some->> (io/resource (System/getenv "CLIP_SYSTEM"))
+                                                     slurp
+                                                     edn/read-string))
+                                data (parse! sys opts)]
+                            (fetch->tx! sys data opts)))
     (System/exit 0)))
