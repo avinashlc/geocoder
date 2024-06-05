@@ -1,8 +1,8 @@
-(ns geocoder.lib.coords 
+(ns geocoder.api.coords 
   (:require [clj-http.client :as client]
             [clojure.data.json :as json]
             [com.rpl.specter :as spr]
-            [geocoder.lib.helper :as helper]
+            [geocoder.api.helper :as helper]
             [geocoder.util :as util]
             [malli.core :as m]
             [throttler.core :as thr]
@@ -72,7 +72,11 @@
         res (client/get geocode-url {:query-params (assoc params :key api-key)})]
     (-> res :body json/read-json)))
 
-(def geocode-get-req! (thr/throttle-fn -geocode-get-req! 30 :second))
+(def geocode-get-req!
+  "Limits the amounts of request per seconds to 30"
+  (thr/throttle-fn -geocode-get-req! 
+                   30 
+                   :second))
 
 (defn geometry!
   "Returns a detail info about the address by making a get request to google's goecode endpoint"

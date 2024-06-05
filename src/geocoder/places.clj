@@ -1,6 +1,6 @@
 (ns geocoder.places 
   (:require [clojure.java.io :as io]
-            [clojure.java.shell :as sh]
+            [clojure.java.shell :as sh]            
             [clojure.string :as str]))
 
 (defn pull-places! [conf]
@@ -29,10 +29,10 @@
         :error))))
 
 (defn init-india! [config node]
-  (println :msg "Initializing Places component"
-           :config config)
+  (println "Initializing Places component")
   (when-let [conf (not-empty config)]
     (if-not (.exists (io/file (str (:resource-path conf) (:pincodes conf))))
       (when (= :ok (pull-places! conf))
         (init-india! conf node))
-      :ok)))
+      :ok)
+    (println "Successfully Initialized Places component\n")))

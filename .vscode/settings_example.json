@@ -11,7 +11,7 @@
       },
       "afterCLJReplJackInCode": [
         "(require '[geocoder.core :as core] '[clojure.edn :as edn] '[clojure.java.io :as io] :reload)",
-        " (core/start! (some->> \"system.edn\" io/resource slurp edn/read-string))"
+        " (core/start! (some->> (System/getenv \"CLIP_SYSTEM\") slurp edn/read-string))"
       ],
       "autoSelectForJackIn": true,
       "projectRootPath": [

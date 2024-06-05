@@ -1,4 +1,4 @@
-(ns geocoder.lib.helper
+(ns geocoder.api.helper
   (:require [clojure.core.reducers :as r]))
 
 (defn broaden-areas

@@ -1,5 +1,8 @@
 (ns geocoder.util 
   (:require [clojure.core.reducers :as r]
+            [clojure.java.io :as io]
+            [clojure.string :as str]
+            [dk.ative.docjure.spreadsheet :as st]
             [tick.core :as t]))
 
 (defn now->future
@@ -64,3 +67,69 @@
   `(if (~pred-fn? ~ok-body)
      (~tfn ~ok-body)
      ~else))
+
+(defn parse-spreadsheet
+  [fp sheet
+   & {header :header
+      hh?    :has-header?
+      cfn    :cell/fn
+      rfn    :row/fn
+      :or    {hh? true
+              rfn identity}}]
+  (let [res       (some->> (io/file fp)
+                           str
+                           st/load-workbook-from-file
+                           (st/select-sheet sheet)
+                           (remove nil?)
+                           (map st/cell-seq)
+                           (map (partial map st/read-cell)))
+        strm      (fn [v] (some-> v str/lower-case
+                                  str/trim
+                                  (str/replace #"\W" "-")
+                                  keyword))
+        [hd & rs] (cond
+                    (and hh? header)                (cons header (rest res))
+                    (and hh? (empty? header))       (cons (mapv strm (first res)) (rest res))
+                    (and (not hh?) header)          (cons header res)
+                    (and (not hh?) (empty? header)) (cons (range 1 (inc (count (first res)))) res))
+        row       (fn [idx item] (cond->>    {(nth hd idx) item}
+                                   (fn? cfn) (into [])
+                                   (fn? cfn) (apply cfn)))
+        tfn       #(dissoc (->> %
+                                (map-indexed row)
+                                (into {}))
+                           nil)]
+    (mapv (comp rfn tfn) rs)))
+
+(defonce iso-languages
+  (let [model (fn [[_sno lname _family _speakers state iso-639]]
+                (let [base {:language/id    (-> iso-639
+                                                str/lower-case
+                                                (str "-IN")
+                                                keyword)
+                            :language/name  lname
+                            :language/state state}
+                      [of ad] (some-> state
+                                      str/lower-case
+                                      (str/replace "official:" "")
+                                      (str/split #"additional:"))
+                      m       (fn [s]
+                                (some->> (str/split (str s) #"(,|and)")
+                                         (map (comp str/trim #(str/replace % #"[^a-zA-Z\s:]"
+                                                                           "")))
+                                         (remove empty?)
+                                         vec))
+                      of      (m of)
+                      ad      (m ad)
+                      loc     {:language/official-states of
+                               :language/spoken-states   ad}]
+                  (merge base loc)))]
+    (some->> (slurp (io/resource "iso_languages.edn"))
+             not-empty
+             (read-string)
+             rest
+             (map model)
+             (cons {:language/id   :en-IN
+                    :language/name "English"})
+             (sort-by :language/name)
+             (into []))))

@@ -1,5 +1,6 @@
 (ns geocoder.db
   (:require [clojure.java.io :as io]
+            [clojure.pprint :as pp]
             [malli.core :as m]
             [xtdb.api :as xt]
             [xtdb.jdbc]
@@ -29,7 +30,9 @@
 
 (defn start! [conf]
   (when (m/validate db-spec conf)
-    (println {:msg "Starting XTDB" :conf conf})
+    (println "Starting Database")
+    (pp/pprint conf)
+    (println "Successfully connected to Database\n")
     (let [opts (fn jdbc-opts
                  [dialect]
                  {:xtdb/query-engine         {:query-timeout (or (:query-timeout conf) 30000)}

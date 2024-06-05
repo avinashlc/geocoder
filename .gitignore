@@ -1,4 +1,4 @@
-.calva/output-window/
+.calva/
 .classpath
 .clj-kondo/.cache
 .cpcache
@@ -54,4 +54,4 @@ my_*.sh
 /development/src/avinash/scratch*
 /development/src/avinash/stuff
 *resources/*/data-import/
-gcp.json
+gcp*.json

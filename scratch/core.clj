@@ -1,7 +1,11 @@
 (ns scratch.core
-  (:require [geocoder.core :as core]
+  (:require [clojure.string :as str]
+            [geocoder.api.coords :as gc]
+            [geocoder.core :as core]
             [geocoder.state :refer [system]]
+            [geocoder.util :as util]
             [throttler.core :as thr]
+            [tick.core :as t]
             [xtdb.api :as xt]))
 
 (def root-config (:config system))
@@ -16,18 +20,57 @@
        (map first)))
 
 (comment
-  (let [+# (thr/throttle-fn + 5 :second)]
-    (doseq [a (range 60)]
+  ;; check, rate limit, if does only one print per second
+  (let [+# (thr/throttle-fn + 1 :second)]
+    (doseq [a (range 10)]
       (->> (+# a a)
-           (println "hereh" (str (java.util.Date.))))))
+           (println "here " (t/time) "\n" (str (java.util.Date.)) "\n"))))
   :rcf)
 
 (comment
-  (defonce maharashtra (core/by-state config "maharashtra")) ;; gets data from the csv
-  (->> maharashtra shuffle (take 5))
+  (defn parse-row [v]
+    (-> v
+        (update-keys (comp
+                      read-string
+                      #(str/replace % "-" "/")
+                      str))
+        (update-vals (fn [v] (if (number? v)
+                               (str (int v))
+                               v)))))
+
+  (defonce maharashtra
+    (sort-by :village/code
+             (util/parse-spreadsheet "pending_geocodes.xlsx"
+                                     "Maharashtra"
+                                     :row/fn parse-row)))
+
+  (defonce rajasthan
+    (->> (util/parse-spreadsheet
+          "pending_geocodes.xlsx" "Rajasthan"
+          :row/fn parse-row)
+         (sort-by :village/code)
+         (take 10000)))
+
+  (count rajasthan)
+  (- 19000 (count maharashtra))
+
+  (gc/get-location-info config "gujarat")
+
+  util/iso-languages
+
+  (->> maharashtra last)
   (count maharashtra)
   ;; removes binding to r-eval
-  ;; (ns-unmap *ns* 'maharashtra)    
+  ;; (ns-unmap *ns* 'maharashtra)  
+
+  (core/build->tx!
+   config node maharashtra
+   :start 0
+   :end 1000
+   :interval 5
+   :trial? true)
+
+
 
   (core/csv->tx! config node
                  (shuffle maharashtra)

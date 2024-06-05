@@ -1,15 +1,19 @@
 (ns geocoder.core
   (:gen-class)
   (:require [clojure.data.csv :as csv]
+            [clojure.tools.cli :refer [parse-opts]]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [geocoder.lib.coords :as gc]
+            [geocoder.api.coords :as gc]
+            [geocoder.db]
+            [geocoder.scheduler]
             [geocoder.state :refer [system]]
             [geocoder.util :as util]
-            [throttler.core :as thr]
-            [geocoder.db]
             [juxt.clip.repl :as clip]
+            [throttler.core :as thr]
+            [tick.core :as t]
             [xtdb.api :as xt]))
 
 (set! *warn-on-reflection* true)
@@ -29,11 +33,11 @@
                        (validator item))]
     (try
       (when ok?
-        (let [address (->> [(:village/name item)
-                            (:subdistrict/name item)
-                            (:district/name item)
+        (let [address (->> ["India"
                             (:state/name item)
-                            "India"]
+                            (:district/name item)
+                            (:subdistrict/name item)
+                            (:village/name item)]
                            (remove nil?)
                            (str/join ", "))
               grid    (gc/indian-address->grid conf address 5)
@@ -44,7 +48,7 @@
                                  :proximity-grid/y (-> grid :grid/address :y)
                                  :proximity-grid/size (:grid/size grid))
                           (update :entity/type #(or % :place))
-                          (update-vals #(if (string? %) (str/upper-case %) %))
+                          (update-vals #(if (string? %) (str/lower-case %) %))
                           (update :xt/id #(or % (some->> (:village/code item) (str "vi") (keyword)))))
               valid?  true]
           (println {:msg "modeled tx"
@@ -84,13 +88,13 @@
                             :subdistrict/name
                             :village/name))))
 
-(defn csv->tx!
-  "1. Takes the parsed csv data 
+(defn build->tx!
+  "1. Takes the parsed data 
    2. injects **grid and geocodes info** to the villages, by using *google's geocode api*
    3. Transact to XTdb"
-  [conf node csv-data & {interval :interval initial :start total :end t? :trial?}]
-  {:pre [(int? initial) (int? total) (int? interval)]}
-  (let [data (->> csv-data (take total) (drop initial))
+  [conf node data & {interval :interval initial :start total :end t? :trial?}]
+  ;; {:pre [(int? initial) (int? total) (int? interval)]}
+  (let [data (->> data (take total) (drop initial))
         partitioned (->> (partition interval data)
                          (map-indexed #(vector %1 %2)))
         xf (partial inject-grid-geocode-info conf node)
@@ -98,16 +102,18 @@
     (doseq [[n part] partitioned
             :let [iterc (str (+ (* n interval) initial) "_"
                              (+ (* (inc n) interval) initial))]]
-      (println-str  "Iteration at: " iterc)
+      (println  "Iteration at: " iterc "\t" (t/time))
       (doseq [item part]
         (if t?
-          (println item)
+          (pprint/pprint item)
           (some->> item xf#
                    (conj [::xt/put])
                    vector
                    (xt/submit-tx node)))))))
 
-(defn start! [config]
+(defn start!
+  [config]
+  (println "\t\t\t >> Starting the system! <<")
   (or (when (nil? system)
         (clip/set-init! (fn [] config))
         (when (= (clip/start) :started)
@@ -115,10 +121,32 @@
           {:ok "started"}))
       {:error "failed while runnig ```juxt.clip.repl/start```"}))
 
+(def cli-options
+  [["-p" "--path SPREADSHEET_PATH" "Absoulte Path to the spreadsheet.\n\t\t\t\tIf not provided starts to work with the csv data it fetched."
+    :validate [#(.exists (io/file %))
+               "Spreadsheet doesn't exist for the given path"]]
+   ["-i" "--interval INTERVAL" "Splits the parsed data into mulitple sections based on the given interval"
+    :parse-fn #(int (parse-long %))
+    :validate [#(<= 0 %) "Must be a number greater than zero"]]
+   ["-S" "--state STATE" "State name in english"]
+   ["-s" "--start START_FROM" "Get items from this position of the parsed data"
+    :parse-fn #(-> % parse-long int)]
+   ["-e" "--end END_AT" "Stop Gettting items at this position of the parsed data"
+    :parse-fn #(-> % parse-long int)]
+   ["-t" "--trial?" "Does a trial run on the parsed data"]
+   ["-h" "--help"   "Prints this help summary"]])
+
 (defn -main
-  "I don't do a whole lot ... yet."
-  [& [config-path :as _args]]
-  (start! (some->> (or config-path "system.edn")
-                   io/resource
-                   slurp
-                   edn/read-string)))
+  [& args]
+  {:pre [(.exists (io/file (io/resource "system.edn")))]}
+  (let [{opts :options
+         sum  :summary
+         err :errors} (parse-opts args cli-options)]
+    (start! (some->> (io/resource "system.edn")
+                     slurp
+                     edn/read-string))
+    (cond
+      (not-empty err) (println (str err "\n" sum))
+      (:help opts)    (do  (println "CLI SUMMARY:") (println sum "\n"))
+      :else           (println opts))
+    (System/exit 0)))

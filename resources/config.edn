@@ -1,7 +1,7 @@
 {:secrets-path       #env SECRETS_PATH
  :secrets            #include #ref [:secrets-path]
 
- :geocode/rate-limit 3000.0
+ :geocode/rate-limit 30 
  
  :databases          {:db/geocodes-pg {:engine        :jdbc
                                        :jdbc-uri      "jdbc:postgresql://localhost:5432/geocoder?user=postgres&password=postgres"
