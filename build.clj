@@ -2,10 +2,14 @@
   (:refer-clojure :exclude [test])
   (:require [clojure.tools.build.api :as b]))
 
-(def lib 'net.clojars.geocoder/geocoder)
-(def version "0.1.0-SNAPSHOT")
+(def build-folder "target")
+(def jar-content (str build-folder "/classes"))
+
 (def main 'geocoder.core)
-(def class-dir "target/classes")
+(def !basis (delay (b/create-basis {:project "deps.edn"})))
+(def version "0.0.1")
+(def app-name "geocoder")
+(def uber-file-name (format "%s/%s-%s-standalone.jar" build-folder app-name version)) ; path for result uber file
 
 (defn test "Run all the tests." [opts]
   (let [basis    (b/create-basis {:aliases [:test]})
@@ -17,23 +21,24 @@
     (when-not (zero? exit) (throw (ex-info "Tests failed" {}))))
   opts)
 
-(defn- uber-opts [opts]
-  (assoc opts
-         :lib lib :main main
-         :uber-file (format "target/%s-%s.jar" lib version)
-         :basis (b/create-basis {})
-         :class-dir class-dir
-         :src-dirs ["src"]
-         :ns-compile [main]))
-
-(defn ci "Run the CI pipeline of tests (and build the uberjar)." [opts]
-  (test opts)
+(defn clean [_]
   (b/delete {:path "target"})
-  (let [opts (uber-opts opts)]
-    (println "\nCopying source...")
-    (b/copy-dir {:src-dirs ["resources" "src"] :target-dir class-dir})
-    (println (str "\nCompiling " main "..."))
-    (b/compile-clj opts)
-    (println "\nBuilding JAR...")
-    (b/uber opts))
-  opts)
+  (println (format "Build folder \"%s\" removed" build-folder)))
+
+(defn uber [_]
+  (clean nil)
+
+  (b/copy-dir {:src-dirs   ["resources" "src"]         ; copy resources
+               :target-dir jar-content})
+
+  (b/compile-clj {:basis      @!basis               ; compile clojure code
+                  :src-dirs   ["src"]
+                  :ns-compile [main]
+                  :class-dir  jar-content})
+
+  (b/uber {:class-dir jar-content                ; create uber file
+           :uber-file uber-file-name
+           :basis     @!basis
+           :main      main})                ; here we specify the entry point for uberjar
+
+  (println "\n" (format "Uber file created: \"%s\"" uber-file-name)))

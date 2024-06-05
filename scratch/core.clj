@@ -55,12 +55,12 @@
   (count maharashtra)
   ;; removes binding to r-eval
   ;; (ns-unmap *ns* 'maharashtra)  
-
+  
   (core/fetch->tx!
    system maharashtra
    :end 2)
 
-  (first (core/places node :pull? true))
+  (first (shuffle (core/places node :pull? true)))
   
   (name :vi:vi)
 

@@ -182,7 +182,8 @@
                (not (number? interval)) vector
                :always                  (map-indexed #(vector %1 %2)))
         xf   (partial inject-grid-geocode-info conf node)
-        xf#  (thr/throttle-fn xf 30 :second)]
+        ;; xf#  (thr/throttle-fn xf 30 :second)
+        ]
     (doseq [[n part] data
             :let     [iterc (str (+ (* n (or interval 1)) (or initial 0)) " __ "
                                  (+ (* (inc n) (or interval 1)) (or initial 0)))]]
@@ -191,10 +192,10 @@
       (doseq [item part]
         (if t?
           (pprint/pprint item)
-          (some->> item xf#
+          (some->> item xf
                    (conj [::xt/put])
                    vector
-                   (xt/submit-tx node)))))
+                   (xt/submit-tx-async node)))))
     (println "Fetched and transacted to database!")))
 
 (defn parse! [sys opts]
@@ -220,7 +221,7 @@
 
 (defn -main
   [& args]
-  {:pre [(.exists (io/file (io/resource (System/getenv "CLIP_SYSTEM"))))]}
+  ;; {:pre [(.exists (io/file (io/resource (System/getenv "CLIP_SYSTEM"))))]}
   (let [psd  (parse-opts args cli-options)
         opts (:options psd)
         err  (:erros psd)
@@ -229,9 +230,11 @@
       (not-empty err)     (println (str err "\n" summ))
       (:help opts)        (do (println "CLI SUMMARY:") (println summ "\n"))
       (not (:state opts)) (println "Error:\n- sState name must be provided via -S flag. run with -h flag for more information.")
-      :else               (let [sys (start! (some->> (io/resource (System/getenv "CLIP_SYSTEM"))
-                                                     slurp
-                                                     edn/read-string))
+      :else               (let [sys (some->> (System/getenv "CLIP_SYSTEM")
+                                             io/resource
+                                             slurp
+                                             edn/read-string
+                                             start!)
                                 data (parse! sys opts)]
                             (fetch->tx! sys data opts)
                             (println "Total no of items transacted: " (places (:db/geocodes system) :count? true))))
