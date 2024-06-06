@@ -14,6 +14,9 @@
 
            juxt/clip                   {:mvn/version "0.28.0"}
 
+           io.pedestal/pedestal.jetty  {:mvn/version "0.7.0-rc-1"}
+           org.slf4j/slf4j-simple      {:mvn/version "2.0.10"}
+
            com.xtdb/xtdb-core          {:mvn/version "1.23.3"}
            com.xtdb/xtdb-jdbc          {:mvn/version "1.23.3"}
            com.xtdb/xtdb-rocksdb       {:mvn/version "1.23.3"}
