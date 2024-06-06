@@ -47,7 +47,7 @@
   (count rajasthan)
   (- 19000 (count maharashtra))
 
-  (gc/get-location-info config "gujarat")
+  (gc/get-location-info config "tamilnadu")
 
   util/iso-languages
 
@@ -59,6 +59,8 @@
   (core/fetch->tx!
    system maharashtra
    :end 2)
+  
+  config
 
   (first (shuffle (core/places node :pull? true)))
   

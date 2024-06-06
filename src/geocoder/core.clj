@@ -12,7 +12,6 @@
             [geocoder.state :refer [system]]
             [geocoder.util :as util]
             [juxt.clip.repl :as clip]
-            [throttler.core :as thr]
             [tick.core :as t]
             [xtdb.api :as xt]))
 
