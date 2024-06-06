@@ -167,27 +167,34 @@
    2. injects **grid and geocodes info** to the villages, by using *google's geocode api*
    3. Transact to XTdb"
   [sys data & {interval :interval initial :start total :end t? :trial? :as opts}]
-  (println "Fetchind data from Google's api for " (count data) " items. And the specification as below: ")  
+  (println "Fetchind data from Google's api for " (count data) " items. And the specification as below: ")
   (pprint/pprint opts)
   (let [conf (some-> sys
                      :config
                      :components/place)
         node (:db/geocodes system)
-        data (cond->> data
+        datf (cond->> data
                (number? total) (take total)
                (number? initial) (drop initial))
-        data (cond->> data
+        datc (count datf)
+        datp (cond->> datf
                (number? interval)       (partition-all interval)
                (not (number? interval)) vector
                :always                  (map-indexed #(vector %1 %2)))
         xf   (partial inject-grid-geocode-info conf node)
+        tc   (places node :count? true)
         ;; xf#  (thr/throttle-fn xf 30 :second)
         ]
-    (doseq [[n part] data
+    (doseq [[n part] datp
             :let     [iterc (str (+ (* n (or interval 1)) (or initial 0)) " __ "
-                                 (+ (* (inc n) (or interval 1)) (or initial 0)))]]
-      (println "Iteration at: " iterc " time: " (t/time))
-      (println "no of items transacted so far: " (places node :count? true))
+                                 (+ (* (inc n) (or interval 1)) (or initial 0)))
+                      dbc   (places node :count? true)
+                      info  {:iteration   iterc
+                             :time        (str (t/time))
+                             :target      datc
+                             :transacted  (- dbc tc)
+                             :total-in-db dbc}]]
+      (pprint/print-table [info])
       (doseq [item part]
         (if t?
           (pprint/pprint item)

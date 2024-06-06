@@ -55,15 +55,25 @@
   (count maharashtra)
   ;; removes binding to r-eval
   ;; (ns-unmap *ns* 'maharashtra)  
-  
+
   (core/fetch->tx!
    system maharashtra
    :end 2)
-  
+
   config
 
-  (first (shuffle (core/places node :pull? true)))
+  (count (core/places node :pull? true))
   
+  (first (shuffle (core/places node :pull? true)))
+
+  (gc/coordiantes->location
+   config
+   {:longitude           73.7874983
+    :latitude            29.6292936}
+   :get-all? true)
+
+
+
   (name :vi:vi)
 
   :rcf)
@@ -74,4 +84,3 @@
   ;; Don't use, unless if the system has beem stopped.  
   (core/-main)
   :rcf)
-
