@@ -1,0 +1,124 @@
+.error {
+  transition: all ease-in 0.6s;
+  color: #cc0000;
+}
+
+.valid {
+  transition: all ease-in 0.6s;
+  color: seagreen;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.display-none {
+  display: none;
+}
+
+/* Customize the label (the checkbox-container) */
+.checkbox-container {
+  display: block;
+  position: relative;
+  padding-left: 4rem;
+  margin-bottom: 5px;
+  cursor: pointer;
+  /* font-size: 22px; */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Hide the browser's default checkbox */
+.checkbox-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkbox-checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 25px;
+  width: 25px;
+  background-color: #f7f1f2;
+  border: 0.25px solid #9f9f9f;
+}
+
+/* On mouse-over, add a grey background color */
+.checkbox-container:hover input ~ .checkbox-checkmark {
+  background-color: #ccc;
+}
+
+/* When the checkbox is checked, add a blue background */
+.checkbox-container input:checked ~ .checkbox-checkmark {
+  background-color: #2196f3;
+}
+
+/* Create the checkbox-checkmark/indicator (hidden when not checked) */
+.checkbox-checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkbox-checkmark when checked */
+.checkbox-container input:checked ~ .checkbox-checkmark:after {
+  display: block;
+}
+
+/* Style the checkbox-checkmark/indicator */
+.checkbox-container .checkbox-checkmark:after {
+  left: 9px;
+  top: 5px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+
+.material-icons.danger {
+  color: hsl(348, 100%, 61%);
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+#dashboard {
+  transition: all 1s ease-in;
+}
+
+#side-panel-dashboard {
+  display: block;
+}
+
+@media (max-width: 625px) {
+  #side-panel-dashboard {
+    display: none;
+  }
+}
+
+.grid_parent {
+  display: grid;
+  grid-template-columns: 30% 70%;
+  grid-template-rows: 100%;
+  grid-column-gap: 10px;
+  grid-row-gap: 0px;
+}
+
+.grid_parent_single_child {
+  display: grid;
+  grid-template-columns: 3% 97%;
+  grid-template-rows: 100%;
+  grid-column-gap: 10px;
+  grid-row-gap: 0px;
+}

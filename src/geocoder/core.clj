@@ -11,6 +11,7 @@
             [geocoder.scheduler]
             [geocoder.state :refer [system]]
             [geocoder.util :as util]
+            [geocoder.web.server :as server]
             [juxt.clip.repl :as clip]
             [tick.core :as t]
             [xtdb.api :as xt]))
@@ -32,6 +33,7 @@
    ["-e" "--end END_AT" "Stop Gettting items at this position of the parsed data"
     :parse-fn #(-> % parse-long int)]
    ["-t" "--trial?" "Does a trial run on the parsed data"]
+   ["-w" "--web?"   "Start a web server."]
    ["-h" "--help"   "Prints this help summary"]])
 
 (defn start!
@@ -237,7 +239,9 @@
     (cond
       (not-empty err)     (println (str err "\n" summ))
       (:help opts)        (do (println "CLI SUMMARY:") (println summ "\n"))
-      (not (:state opts)) (println "Error:\n- sState name must be provided via -S flag. run with -h flag for more information.")
+      (:web? opts)        (do (println "Starting the web, мадам!")
+                              (server/start!))
+      (not (:state opts)) (println "Error:\n- State name must be provided via -S flag. run with -h flag for more information.")
       :else               (let [sys (some->> (System/getenv "CLIP_SYSTEM")
                                              io/resource
                                              slurp
