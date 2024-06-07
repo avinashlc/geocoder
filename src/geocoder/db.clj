@@ -35,7 +35,7 @@
     (println "Successfully connected to Database\n")
     (let [opts (fn jdbc-opts
                  [dialect]
-                 {:xtdb/query-engine         {:query-timeout (or (:query-timeout conf) 30000)}
+                 {:xtdb/query-engine         {:query-timeout (or (:query-timeout conf) 300000)}
                   :xtdb.jdbc/connection-pool {:dialect {:xtdb/module dialect}
                                               :pool-opts {}
                                               :db-spec   {:jdbcUrl (:jdbc-uri conf)}}

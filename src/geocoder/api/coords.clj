@@ -66,7 +66,7 @@
        k))
    loc))
 
-(defn -geocode-get-req! [config params]
+(defn- -geocode-get-req! [config params]
   (let [geocode-url (:geocode-url config)
         api-key (:google-api config)
         res (client/get geocode-url {:query-params (assoc params :key api-key)})]
@@ -112,13 +112,13 @@
 
    e.g: (coordiantes->location {:latitude 20.127954, :longitude 68.1623859})
    "
-  [config coords & {get? :get-all?}]
+  [config coords & {get? :get-all? lt :location/type}]
   (let [coords-str (str (:latitude coords) "," (:longitude coords))
         res (geocode-get-req! config {:latlng coords-str})]
     (if get?
       (:results res)
       (->> res :results
-           (filter #(= (-> % :types first) "administrative_area_level_2"))
+           (filter #(= (-> % :types first) (or lt "administrative_area_level_2")))
            first :formatted_address))))
 
 (defn area-boundary

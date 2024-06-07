@@ -5,8 +5,7 @@
             [geocoder.state :refer [system]]
             [geocoder.util :as util]
             [throttler.core :as thr]
-            [tick.core :as t]
-            [xtdb.api :as xt]))
+            [tick.core :as t]))
 
 (def root-config (:config system))
 (def config (:components/place root-config))
@@ -44,10 +43,19 @@
          (sort-by :village/code)
          (take 10000)))
 
+  (defonce UP
+    (->> (util/parse-spreadsheet
+          ".stuff/pending_geocodes.xlsx" "uttar pradesh"
+          :row/fn parse-row)
+         (sort-by :village/code)
+         (take 13000)))
+
   (count rajasthan)
   (- 19000 (count maharashtra))
 
-  (gc/get-location-info config "tamilnadu")
+  (try
+    (gc/get-location-info config "gujarat")
+    (catch Exception e e))
 
   util/iso-languages
 
@@ -55,23 +63,25 @@
   (count maharashtra)
   ;; removes binding to r-eval
   ;; (ns-unmap *ns* 'maharashtra)  
-  
-  (core/fetch->tx!
-   system maharashtra
-   :end 2)
-  
-  config
+
+  (core/places node :count? true)
+
+  (core/fetch->tx! system UP :end 10)
+
+  (count (core/places node :pull? true))
 
   (first (shuffle (core/places node :pull? true)))
-  
-  (name :vi:vi)
+
+  (gc/coordiantes->location
+   config
+   {:longitude 73.7874983
+    :latitude  29.6292936}
+   :get-all? true)
 
   :rcf)
 
-(/ 3000.0 60)
 
 (comment
   ;; Don't use, unless if the system has beem stopped.  
   (core/-main)
   :rcf)
-
