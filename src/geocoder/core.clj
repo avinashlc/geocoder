@@ -71,7 +71,7 @@
                        vic  (conj ['?e :village/code vic])
                        id   (conj ['?e :xt/id id]))})]
     (cond
-      c? (ffirst res)
+      c? (or (ffirst res) 0)
       :else (map first res))))
 
 (defn update-code [item]
@@ -166,7 +166,11 @@
   "1. Takes the parsed data 
    2. injects **grid and geocodes info** to the villages, by using *google's geocode api*
    3. Transact to XTdb"
-  [sys data & {interval :interval initial :start total :end t? :trial? :as opts}]
+  [sys data & {interval :interval
+               initial  :start
+               total    :end
+               t?       :trial?
+               :as      opts}]
   (println "Fetchind data from Google's api for " (count data) " items. And the specification as below: ")
   (pprint/pprint opts)
   (let [conf (some-> sys
@@ -182,26 +186,24 @@
                (not (number? interval)) vector
                :always                  (map-indexed #(vector %1 %2)))
         xf   (partial inject-grid-geocode-info conf node)
-        tc   (places node :count? true)
-        ;; xf#  (thr/throttle-fn xf 30 :second)
-        ]
+        tc   (places node :count? true)]
     (doseq [[n part] datp
             :let     [iterc (str (+ (* n (or interval 1)) (or initial 0)) " __ "
-                                 (+ (* (inc n) (or interval 1)) (or initial 0)))
-                      dbc   (places node :count? true)
-                      info  {:iteration   iterc
-                             :time        (str (t/time))
-                             :target      datc
-                             :transacted  (- dbc tc)
-                             :total-in-db dbc}]]
-      (pprint/print-table [info])
+                                 (+ (* (inc n) (or interval 1)) (or initial 0)))]]
       (doseq [item part]
         (if t?
           (pprint/pprint item)
-          (some->> item xf
+          (some->> item not-empty xf
                    (conj [::xt/put])
                    vector
-                   (xt/submit-tx-async node)))))
+                   (xt/submit-tx-async node))))
+      (let [dbc  (places node :count? true)
+            info {:iteration   iterc
+                  :time        (str (t/time))
+                  :target      datc
+                  :transacted  (- dbc tc)
+                  :total-in-db dbc}]
+        (pprint/print-table [info])))
     (println "Fetched and transacted to database!")))
 
 (defn parse! [sys opts]
@@ -243,5 +245,6 @@
                                              start!)
                                 data (parse! sys opts)]
                             (fetch->tx! sys data opts)
-                            (println "Total no of items transacted: " (places (:db/geocodes system) :count? true))))
+                            (Thread/sleep 3000)
+                            (println "\nTotal no of items transacted: " (places (:db/geocodes system) :count? true))))
     (System/exit 0)))

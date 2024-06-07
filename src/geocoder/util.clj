@@ -1,4 +1,4 @@
-(ns geocoder.util 
+(ns geocoder.util
   (:require [clojure.core.reducers :as r]
             [clojure.java.io :as io]
             [clojure.string :as str]

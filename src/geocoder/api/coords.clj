@@ -66,7 +66,7 @@
        k))
    loc))
 
-(defn -geocode-get-req! [config params]
+(defn- -geocode-get-req! [config params]
   (let [geocode-url (:geocode-url config)
         api-key (:google-api config)
         res (client/get geocode-url {:query-params (assoc params :key api-key)})]
