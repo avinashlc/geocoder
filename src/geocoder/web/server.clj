@@ -56,6 +56,7 @@
 
 (defn start! [sys]
   (alter-var-root #'config (constantly (:config sys)))
+  (println (str "please open your browser and visit:  http://localhost:" (::http/port srv) "/") "\n")
   (http/start (create-server srv)))
 
 (defn dev-start! [sys]

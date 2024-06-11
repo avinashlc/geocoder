@@ -173,7 +173,7 @@
               [:pre {:style ($$ {:color   (or color "salmon")
                                  :padding "1rem"})}
                [:strong msg]
-               "Please check your form details before trying again"])]
+               " Please check your form details before trying again"])]
     (>!! [:progress])
     (background-task!
      :stats/transaction
@@ -211,12 +211,12 @@
                                           [:tr
                                            [:td {:scope   "row"
                                                  :colspan "6"}
-                                            [:progress {:value (int (* (/ (if (:interval info)
-                                                                            (:at info)
-                                                                            (+ (:in-db info)
-                                                                               (:transacted info)))
-                                                                          (:target info))
-                                                                       100))
+                                            [:progress {:value (let [at  (if (:interval info)
+                                                                           (* (:index info) (:interval info))
+                                                                           (+ (:in-db info) (:transacted info)))
+                                                                     rio (/ at (:target info))
+                                                                     prc (* rio 100)]
+                                                                 (int prc))
                                                         :max   100}]]])
                                         (when (:completed? true)
                                           [:tr

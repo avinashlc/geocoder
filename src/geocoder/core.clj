@@ -60,6 +60,7 @@
                                        io/resource
                                        slurp
                                        edn/read-string
+                                       start!
                                        server/start!))
       (not (:state opts)) (println "Error:\n- State name must be provided via -S flag. run with -h flag for more information.")
       :else               (let [sys (some->> sysp

@@ -190,8 +190,8 @@
               :let     [iter-at (+ (* n (or interval 1)) (or initial 0))
                         iter-nx (+ (* (inc n) (or interval 1)) (or initial 0))
                         iterc   (str iter-at " __ " iter-nx)]]
-        (reset! dup! 0)
-        (worker! dup! part {:at        iter-at
+        (worker! dup! part {:index     n
+                            :at        iter-at
                             :next      iter-nx
                             :iteration iterc})))
     (println "Fetched and transacted to database!")
