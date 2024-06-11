@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [dk.ative.docjure.spreadsheet :as st]
+            [juxt.clip.repl :as clip]
             [tick.core :as t]))
 
 (defn now->future
@@ -133,3 +134,53 @@
                     :language/name "English"})
              (sort-by :language/name)
              (into []))))
+
+(defn remove-by-predicate
+  "Removes key-val pairs by predicate
+  eg: (remove-by-predicate even? {:a 2 :b 8 :c 1}) =>> {:c 1}
+  "
+  [predicate m & {r? :recursive?}]
+  (if (map? m)
+    (cond->> m
+      true    (remove (comp predicate val))
+      r?      ((fn [v] (update-vals v #(remove-by-predicate predicate % :recursive? r?))))
+      :always (into {}))
+    m))
+
+(defn remove-nil-vals
+  [map & {:keys [pathom-nil? recursive?]}]
+  (if (map? map)
+    (let [rm (fn [pred m] (remove-by-predicate pred m :recursive? recursive?))]
+      (cond->> map
+        true        (rm #(or (when (coll? %) (empty? %)) (nil? %)))
+        pathom-nil? (rm #(= :com.wsscode.pathom.core/not-found %))
+        :always     (into {})))
+    map))
+
+(defn file-info
+  [file-str]
+  (let [src            (-> file-str
+                           (str/split #"/"))
+        [filename ext] (-> src
+                           last
+                           (str/split #"\."))
+        fullname       (str filename "." ext)
+        path           (->> src
+                            drop-last
+                            (str/join #"/"))]
+    {:name      filename
+     :full-name fullname
+     :ext       ext
+     :path      path
+     :file-str  file-str}))
+
+(defn initiator! [config]
+  (when-not (empty? config)
+    (if-let [sys (do
+                   (clip/set-init! (fn [] config))
+                   (when (= (clip/start) :started)
+                     clip/system))]
+      sys
+      (do
+        (println "Error Starting the system. TODO! better errors")
+        (System/exit 0)))))

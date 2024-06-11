@@ -1,5 +1,7 @@
 (ns scratch.core
-  (:require [clojure.string :as str]
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
+            [dk.ative.docjure.spreadsheet :as st]
             [geocoder.api.coords :as gc]
             [geocoder.core :as core]
             [geocoder.state :refer [system]]
@@ -20,6 +22,13 @@
   :rcf)
 
 (comment
+  root-config
+  
+  (-> (io/file ".stuff/pending_geocodes.xlsx")
+      str
+      st/load-workbook-from-file
+      st/sheet-seq)
+  
   (defn parse-row [v]
     (-> v
         (update-keys (comp
@@ -29,6 +38,31 @@
         (update-vals (fn [v] (if (number? v)
                                (str (int v))
                                v)))))
+
+  (try
+    (map? (:location (gc/geometry! {:google-api "POP"} "India")))
+    (catch Exception e
+      (println e)
+      false))
+
+  {:bounds        {:northeast {:lat 35.6733149
+                               :lng 97.39535869999999}
+                   :southwest {:lat 6.4626999
+                               :lng 68.1097}}
+   :location      {:lat 20.593684
+                   :lng 78.96288}
+   :location_type "APPROXIMATE"
+   :viewport      {:northeast {:lat 35.6733149
+                               :lng 97.39535869999999}
+                   :southwest {:lat 6.4626999
+                               :lng 68.1097}}}
+
+  {:lgd           "https://storage.googleapis.com/lgd_data_archive/10Jan2024.zip"
+   :resource-path "resources/places/"
+   :villages      "villages_by_blocks.csv"
+   :pincodes      "pincode_villages.csv"
+   :geocode-url   "https://maps.googleapis.com/maps/api/geocode/json"
+   :google-api    "AIzaSyAbUAqS62q9L93s0E8KOGKsvCfjJcHe6HE"}
 
   (defonce maharashtra
     (sort-by :village/code

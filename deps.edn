@@ -3,6 +3,7 @@
            org.clojure/tools.namespace  {:mvn/version "1.4.1"}
            org.clojure/tools.cli        {:mvn/version "1.0.219"}
            org.clojure/data.csv         {:mvn/version "1.0.1"}
+           org.clojure/core.async       {:mvn/version "1.6.681"}
 
            clj-http/clj-http            {:mvn/version "3.12.3"}
            throttler/throttler          {:mvn/version "1.0.1"}

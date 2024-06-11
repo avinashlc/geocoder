@@ -23,22 +23,6 @@
     {:value value
      :error-id error-id}))
 
-#_(defn view-attachment [context]
-    (let [path-params (-> context :request :path-params)
-          atch (-> path-params
-                   :attachment-id
-                   parse-uuid
-                   attachment/get-attachment)
-          src (:attachment/src atch)
-          info (util/file-info src)
-          content-type (case (:ext info)
-                         "jpg" "image/jpeg"
-                         "jpeg" "image/jpeg"
-                         "png" "image/png"
-                         (str "application/" (:ext info)))]
-      {:src (io/file src)
-       :content-type content-type}))
-
 (defn res [context body & {:keys [headers status]}]
   (let [response (-> body
                      html5
@@ -48,17 +32,5 @@
         (update-in [:response :headers] merge headers)
         (update-in [:response :status] #(or status %)))))
 
-#_(defn display-error [context ex]
-    (log/info :msg "Page Not found"
-              :error ex)
-    (res context (not-found)))
-
-#_(defn page-not-found [context ex]
-    (log/info :msg "Page Not found"
-              :error ex)
-    (res context (not-found)))
-
 (defn redirect [context url]
-  (res context ""
-       :headers {"HX-Redirect" url}))
-
+  (res context "" :headers {"HX-Redirect" url}))

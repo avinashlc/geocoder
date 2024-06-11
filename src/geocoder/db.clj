@@ -45,7 +45,7 @@
                                               :connection-pool :xtdb.jdbc/connection-pool}
                   :xtdb/index-store          {:kv-store {:xtdb/module 'xtdb.rocksdb/->kv-store
                                                          :db-dir      (io/file (:index-store conf))}}
-                  :xtdb.http-server/server   {:port (or (:http-port conf) 3000)}
+                  ;; :xtdb.http-server/server   {:port (or (:http-port conf) 3000)}
                   :xtdb.lucene/lucene-store  {:db-dir (:lucene-store conf)}})]
       (case (:engine conf)
         :jdbc (xt/start-node (opts 'xtdb.jdbc.psql/->dialect))

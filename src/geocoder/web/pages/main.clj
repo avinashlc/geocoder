@@ -1,106 +1,110 @@
 (ns geocoder.web.pages.main
-  (:require [geocoder.web.helpers :as hlp]
+  (:require [clojure.string :as str]
+            [geocoder.util :as util]
             [geocoder.web.htmx :refer [$$]]
-            [geocoder.web.ui :as ui]
             [geocoder.web.pages.meta :refer [<meta>]]))
 
-(defn flow-form [& _args]
+(defn <>
+  [& body]
   (<meta> {:data-theme "dark"
-           :style ($$ {:margin "0 auto"
-                       :padding "0"})}
-    [:main.container
-     [:h1 [:mark "GEOCODER!!"]]
-     [:div {:id "display-flow-error"
-            :_ "on click hide me"}]
-     [:form {:hx-post "/flow/form/basic/"
-             :hx-target "#display-flow-error"
-             :hx-swap "outerHTML"}
-      [:label "Flow ID (Only change the ID if it's needed)"
-       [:input {:name "flow_id" :type "text" :value (str (random-uuid))}]]
-      [:label "Flow Name"
-       [:input {:name "flow_name" :type "text"}]]
-      [:label "Flow Intent"
-       (ui/select
-        :action {:hx-post   "/flow/form/basic/intent"
-                 :hx-target "#flow_intent-sub"}
-        :name "flow_intent"
-        :contents ["text" "location" "image" "template" "other"]
-        :render #(ui/option :label %
-                         :value %))]
-      [:div {:id "flow_intent-sub"}]
-      [:label "Flow Company"
-       (ui/select
-        :name "flow_company"
-        :contents [{:xt/id "as" :company/shortname "asas"}]
-        :render #(ui/option :label (:company/shortname %)
-                         :value (:xt/id %)))]
-      [:button {:type "submit"}
-       "Open builder"]]]))
-
-(defn steps-content [{id :element/id}]
-  [:div {:id id}
-   [:h4 "content"]])
-
-(defn- toggle [child]
-  (let [tgl  (case child
-               :one "two"
-               :two "one")
-        text (fn [remove add]
-               (hlp/space "on click"
-                          (str "hide #grid_child_" (name child))
-                          "then"
-                          (str "remove " remove " from #grid_parent")
-                          "then"
-                          "add " add " to #grid_parent"
-                          "then"
-                          (str "show #grid_child_" tgl)))]
-    (case child
-      :one (text ".grid_parent_single_child"
-                 ".grid_parent")
-      :two (text
-            ".grid_parent"
-            ".grid_parent_single_child"))))
-
-(defn steps-list-toggler
-  [{id :element/id}]
-  [:div {:id    id
-         :style ($$ {:display "none"})
-         :_     (toggle :one)}
-   [:p {:style ($$ {:text-align "center"
-                    :display    "inline-block"
-                    :vertical-align "sub"})}
-    [:iconify-icon {:icon "line-md:watch-loop"}]]])
-
-(defn steps-list [{id :element/id}]
-  [:div {:id id
-         :style ($$ {:background-color "var(--code-background-color)"})}
-   [:h4 {:style ($$ {:text-align     "center"
-                     :height "0"})} "steps"
-    [:p {:style ($$ {:margin-left "5%"
-                     :display    "inline-block"
-                     :vertical-align "sub"})
-         :_     (toggle :two)}
-     [:iconify-icon {:icon "line-md:watch-off-twotone-loop"}]]]
-   [:hr]])
-
-(defn flow-draw [params]
-  (<meta> {:base/head  [[:script {:defer "defer"
-                                  :src   "/js/sortable.js"}]]
-           :data-theme "dark"
            :style      ($$ {:margin  "0 auto"
                             :padding "0"})}
-    [:main.container
-     [:h1 [:mark "FLOW!"] " Builder"]
-     [:div [:pre {:style ($$ {:padding "1rem"
-                              :color   (if (:ok params) "cream" "salmon")})}
-            [:strong (hlp/pprint-str (or (:ok params) (:err params)))]]
-      (when (:err params)
-        [:a {:href "/flow/form/"}
-         [:small "Click here to fill up"
-          [:strong " basic flow information, "]
-          "if you haven't done yet"]])
-      [:div.grid_parent.container-fluid
-       {:id "grid_parent" :style ($$ {:margin-top "1rem"})}
-       (steps-list-toggler {:element/id "grid_child_one"})
-       (steps-list {:element/id "grid_child_two"})
-       (steps-content {:element/id "grid_child_two"})]]]))
+          [:main.container
+           [:header
+            [:h1 [:i "GEOCODER!!"]]
+            [:h1 [:button.outline {:hx-get "/reset"
+                                   :style  ($$ {:color "salmon"})}
+                  "reset form!"]]]
+           body]))
+
+(defn <ip> [fdt k title & {:as args}]
+  (let [reqd [:span {:style ($$ {:color "yellowgreen"})} [:strong " < REQ >"]]
+        cmp [:label title (when (:required? args) reqd)
+             [:input (-> (dissoc args :required?)
+                         (merge {:name  (name k)
+                                 :value (k fdt)})
+                         (update :type #(or % "text"))
+                         util/remove-nil-vals)]]]
+    (vec (remove nil? cmp))))
+
+(defn form [& {!state :form/state}]
+  (let [<ip> (partial <ip> @!state)]
+    (<>
+     [:section
+      [:div {:id "display-form-info"
+             :_  "on click set #form-submit @aria-busy to 'false' then hide me"}]
+      [:form {:hx-encoding "multipart/form-data"
+              :hx-post     "/form"
+              :hx-target   "#display-form-info"
+              :hx-swap     "outerHTML"}
+       (<ip> :google-api "Google Geolocation API"
+             :required? true
+             :type "password")
+       (<ip> :state "State Name" :required? true)
+       (<ip> :start "Position Start"
+             :type        "number"
+             :placeholder "Get items from this position of the parsed data")
+       (<ip> :end "Position End"
+             :type        "number"
+             :placeholder "Stop Gettting items at this position of the parsed data")
+       (<ip> :interval "Interval"
+             :type        "number"
+             :placeholder "Splits the parsed data into mulitple sections based on the given interval")
+       (<ip> :spreadsheet "Spreadsheet"
+             :required?  true
+             :type        "file"
+             :accept      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+       [:button {:id "form-submit"
+                 :type "submit"
+                 :_ "on click set @aria-busy to 'true'"} "Fetch and Transact!"]]])))
+
+(defn basic-table [fdt]
+  [:table
+   [:tr
+    [:th {:scope "row"} [:strong  "Google API token"]]
+    [:td {:scope "row"}
+     [:i
+      (let [[v r] (split-at 5 (:google-api fdt))
+            sx    (partial apply str)]
+        (str (sx v)  (sx (repeatedly (count r) (constantly "*")))))]]]
+
+   (when (:start fdt)
+     [:tr
+      [:th {:scope "row"} [:strong "Start"]]
+      [:td {:scope "row"} [:i (:start fdt)]]])
+
+   (when (:end fdt)
+     [:tr
+      [:th {:scope "row"} [:strong "End"]]
+      [:td {:scope "row"} [:i (:end fdt)]]])
+
+   (when (:interval fdt)
+     [:tr
+      [:th {:scope "row"} [:strong "Interval"]]
+      [:td {:scope "row"} [:i (:interval fdt)]]])
+
+   [:tr
+    [:th {:scope "row"} [:strong "Spreadsheet"]]
+    [:td {:scope "row"} [:i (:spreadsheet fdt)]]]])
+
+(defn stat
+  [& {!state :form/state}]
+  (<>
+   [:article
+    (basic-table @!state)
+    [:div {:id "stat-sse"}
+     [:section
+      [:button.outline
+       {:hx-get   "/transaction/cancel"
+        :id        "transaction-handler"
+        :style     ($$ {:color "salmon"})
+        :hx-target "#stat-sse"
+        :hx-swap "innerHTML"}
+       "cancel transaction :c"]]
+     [:div {:id          "sse-container"
+            :hx-ext      "sse"
+            :sse-connect "/transaction/sse"}
+      [:section {:sse-swap  "message"}]
+      [:div {:id        "sse-exit"
+             :sse-swap  "transaction-complete"
+             :hx-target "#stat-sse"}]]]]))

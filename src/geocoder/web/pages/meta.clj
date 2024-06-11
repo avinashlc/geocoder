@@ -18,6 +18,10 @@
                                       :href "/css/main.css"}]
                               [:script {:defer "defer"
                                         :src   "/js/htmx.js"}]
+                              ;; server sent events
+                              [:script {:defer "defer"
+                                        :src   "/js/htmx_sse.js"}]
+                              ;; UI magic
                               [:script {:defer "defer"
                                         :src   "/js/hyperscript.js"}]
                               [:script {:defer "defer"
