@@ -55,3 +55,4 @@ my_*.sh
 /development/src/avinash/stuff
 *resources/*/data-import/
 gcp*.json
+*.xlsx
