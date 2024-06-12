@@ -64,9 +64,10 @@
     [:th {:scope "row"} [:strong  "Google API token"]]
     [:td {:scope "row"}
      [:i
-      (let [[v r] (split-at 5 (:google-api fdt))
+      (let [k     (:google-api fdt)
+            [v r] (split-at (- (count k) 5) k)
             sx    (partial apply str)]
-        (str (sx v)  (sx (repeatedly (count r) (constantly "*")))))]]]
+        (str (sx (repeatedly (count v) (constantly "*")))  (sx r)))]]]
 
    (when (:start fdt)
      [:tr

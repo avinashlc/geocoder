@@ -224,7 +224,10 @@
                                                  :colspan "6"}
                                             [:i [:strong "Transaction Completed"]]]])])])
                          opts (assoc opts :post-process (comp >!! pfn))
-                         tx!  (tx/fetch->tx! @!system data opts)]
+                         tx!  (some-> @!system
+                                      (assoc-in [:config :components/place :google-api]
+                                                (:google-api opts))
+                                      (tx/fetch->tx! data opts))]
                      (when (= :ok tx!)
                        (>!! :transaction-complete (pfn {:completed?  true
                                                         :total-in-db (tx/places (:db/geocodes @!system) :count? true)}))))
