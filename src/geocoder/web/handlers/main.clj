@@ -22,6 +22,13 @@
 (def ^:private !form-state (atom nil))
 (def ^:private !system (atom nil))
 
+(defn db-info []
+  (let [sys  (if (:db/geocodes @!system)
+               @!system
+               (reset! !system (or (not-empty clip/system)
+                                   (util/initiator! config))))]
+    (tx/info (:db/geocodes sys))))
+
 (comment
   @!form-state
   :rcf)
@@ -142,14 +149,16 @@
    :enter (fn [context]
             (h/res context
                    (main/stat :form/state !form-state
-                              :form/spec form-spec)))})
+                              :form/spec  form-spec
+                              :app/state  {:db/info (db-info)})))})
 
 (def form-view
   {:name  :ui/form
    :enter (fn [context]
             (h/res context
                    (main/form :form/state !form-state
-                              :form/spec form-spec)))})
+                              :form/spec  form-spec
+                              :app/state  {:db/info (db-info)})))})
 
 (def main-handler
   {:name  :web/main
@@ -161,6 +170,11 @@
                      {:status  302
                       :body    ""
                       :headers {"Location" goto}})))})
+
+(def db-info-handler
+  {:name  :stat/cancel-transaction
+   :enter (fn [context]
+            (h/res context (main/info (db-info))))})
 
 (defn stats-stream [evt-chan _context]
   (let [>!! (fn blocking>>

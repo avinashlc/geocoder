@@ -24,8 +24,8 @@
                               ;; UI magic
                               [:script {:defer "defer"
                                         :src   "/js/hyperscript.js"}]
-                              [:script {:defer "defer"
-                                        :src   "/js/iconify.js"}]
+                              #_[:script {:defer "defer"
+                                          :src   "/js/iconify.js"}]
                               [:script {:defer "defer"
                                         :src   "/js/main.js"}]]
                              head)

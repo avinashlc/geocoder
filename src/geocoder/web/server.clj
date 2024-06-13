@@ -28,13 +28,15 @@
 
      ["/reset" {:get `main/reset-handler}]
 
-
      ["/transaction"
       ["/start" {:get `main/start-transaction}]
       ["/cancel" {:get `main/cancel-transaction}]
       ;;  SSE
       ["/sse" {:get [:sse/geolocation-transact
                      (sse/start-event-stream main/stats-stream)]}]]
+
+     ["/db/info"
+      {:get `main/db-info-handler}]
 
      ["/echo"
       ^:interceptors [(body-params)]

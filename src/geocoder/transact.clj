@@ -10,7 +10,32 @@
             [geocoder.util :as util]
             [tick.core :as t]
             [xtdb.api :as xt]
-            [com.rpl.specter :as s]))
+            [xtdb.query :as query]))
+
+(defmethod query/aggregate 'group->count [_]
+  (fn aggregate-group->count
+    ([] [])
+    ([acc] (reduce (fn [acc' v] (update acc' v #(or (some-> % inc) 1))) {} acc))
+    ([acc x] (conj acc x))))
+
+(defn info [node]
+  (let [base   '[[?e :entity/type :place]
+                 [?e :latitude ?la]
+                 [?e :longitude ?lo]]
+        total  (ffirst (xt/q (xt/db node)
+                             {:find  '[(count ?e)]
+                              :where base}))
+        states (->> (xt/q
+                     (xt/db node)
+                     {:find  '[(group->count ?sn)]
+                      :in    '[?clean]
+                      :where (conj base
+                                   '[?e :state/name ?snr]
+                                   '[(?clean ?snr) ?sn])}
+                     (comp str/lower-case str/trim))
+                    ffirst)]
+    {:total  (or total 0)
+     :states states}))
 
 (defn places
   [node

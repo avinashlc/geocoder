@@ -7,7 +7,8 @@
             [geocoder.state :refer [system]]
             [geocoder.util :as util]
             [throttler.core :as thr]
-            [tick.core :as t]))
+            [tick.core :as t]
+            [xtdb.api :as xt]))
 
 (def root-config (:config system))
 (def config (:components/place root-config))
@@ -23,12 +24,15 @@
 
 (comment
   root-config
-  
+
+  (xt/submit-tx node [[::xt/delete :pop]])
+
+
   (-> (io/file ".stuff/pending_geocodes.xlsx")
       str
       st/load-workbook-from-file
       st/sheet-seq)
-  
+
   (defn parse-row [v]
     (-> v
         (update-keys (comp
