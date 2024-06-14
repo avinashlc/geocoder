@@ -3,7 +3,7 @@
             [tick.core :as t]
             [geocoder.util :as util]))
 
-(def tasks (atom {}))
+(def !tasks (atom {}))
 
 (defn default-err [task-id]
   (fn [err]
@@ -18,11 +18,13 @@
     :or   {err-handler default-err
            time (t/inst)}}]
   (let [scheduler (chime/chime-at [time] task-fn {:error-handler err-handler})]
-    (swap! tasks assoc task-id scheduler)))
+    (swap! !tasks assoc task-id scheduler)))
 
 (defn cancel-task! [task-id]
-  (when-some [task (task-id @tasks)]
-    (.close task)))
+  (when-some [task (task-id @!tasks)]
+    (.close task)
+    (swap! !tasks dissoc task-id)
+    :ok))
 
 (comment
   (background-task!

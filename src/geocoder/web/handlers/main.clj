@@ -17,10 +17,12 @@
             [juxt.clip.repl :as clip]
             [malli.core :as m]
             [malli.error :as me]
-            [geocoder.scheduler :refer [background-task! cancel-task!]]))
+            [geocoder.scheduler :as task]
+            [com.rpl.specter :as s]))
 
 (def ^:private !form-state (atom nil))
 (def ^:private !system (atom nil))
+(def ^:private task-id :stats/transaction)
 
 (defn db-info []
   (let [sys  (if (:db/geocodes @!system)
@@ -129,7 +131,7 @@
 (def cancel-transaction
   {:name  :stat/cancel-transaction
    :enter (fn [context]
-            (cancel-task! :stats/transaction)
+            (task/cancel-task! task-id)
             (h/res context
                    [:section
                     [:button.outline
@@ -141,7 +143,7 @@
 
 (def start-transaction
   {:name  :stat/cancel-transaction
-   :enter (fn [context]          
+   :enter (fn [context]
             (h/redirect context "/stat"))})
 
 (def stats-view
@@ -176,80 +178,88 @@
    :enter (fn [context]
             (h/res context (main/info (db-info))))})
 
+(def ^:private !event-channel (atom nil))
+
 (defn stats-stream [evt-chan _context]
+  (when @!event-channel (a/close! @!event-channel))
+  (reset! !event-channel evt-chan)
   (let [>!! (fn blocking>>
               ([data]
                (blocking>> :message data))
               ([evt data]
-               (a/>!! evt-chan {:name (name evt)
-                                :data (html5 data)})))
+               (a/>!! @!event-channel
+                      {:name (name evt)
+                       :data (html5 data)})))
         txt (fn [msg & {color :color}]
               [:pre {:style ($$ {:color   (or color "salmon")
                                  :padding "1rem"})}
                [:strong msg]
                " Please check your form details before trying again"])]
     (>!! [:progress])
-    (background-task!
-     :stats/transaction
-     (fn [_exec-time]
-       (if (empty? @!system)
-         (>!! (txt "System initialization Failed!"))
-         (try
-           (if (m/validate form-spec @!form-state)
-             (let [base [:table
-                         [:thead
-                          [:tr
-                           [:th {:scope "col"} "Iteration"]
-                           [:th {:scope "col"} "Time"]
-                           [:th {:scope "col"} "Target"]
-                           [:th {:scope "col"} "Transacted"]
-                           [:th {:scope "col"} "In DB"]
-                           [:th {:scope "col"} "Total in DB"]]]]
-                   opts (set/rename-keys
-                         @!form-state
-                         {:spreadsheet :path})]
-               (when-not (chan/closed? evt-chan)
-                 (if-let [data (not-empty (:data @!form-state))]
-                   (let [pfn  (fn [info]
-                                [:section
-                                 (conj base
-                                       [:tbody
-                                        [:tr
-                                         [:th {:scope "row"} (:iteration info)]
-                                         [:th {:scope "row"} (:time info)]
-                                         [:th {:scope "row"} (:target info)]
-                                         [:th {:scope "row"} (:transacted info)]
-                                         [:th {:scope "row"} (:in-db info)]
-                                         [:th {:scope "row"} (:total-in-db info)]]
-                                        (when (and (:transacted info) (:target info))
-                                          [:tr
-                                           [:td {:scope   "row"
-                                                 :colspan "6"}
-                                            [:progress {:value (let [at  (if (:interval info)
-                                                                           (* (:index info) (:interval info))
-                                                                           (+ (:in-db info) (:transacted info)))
-                                                                     rio (/ at (:target info))
-                                                                     prc (* rio 100)]
-                                                                 (int prc))
-                                                        :max   100}]]])
-                                        (when (:completed? true)
-                                          [:tr
-                                           [:td {:scope   "row"
-                                                 :colspan "6"}
-                                            [:i [:strong "Transaction Completed"]]]])])])
-                         opts (assoc opts :post-process (comp >!! pfn))
-                         tx!  (some-> @!system
-                                      (assoc-in [:config :components/place :google-api]
-                                                (:google-api opts))
-                                      (tx/fetch->tx! data opts))]
-                     (when (= :ok tx!)
-                       (>!! :transaction-complete (pfn {:completed?  true
-                                                        :total-in-db (tx/places (:db/geocodes @!system) :count? true)}))))
-                   (>!! (txt "No data found to fetch!")))))
-             (when-not (chan/closed? evt-chan)
-               (>!! (txt "Invalid Form State!"))))
-           (catch Exception e
-             (println (.getMessage e))
-             (pp/pprint e)
-             (>!! :transact-complete (txt (.getMessage e))))))
-       (a/close! evt-chan)))))
+    (when-not (boolean (task-id @task/!tasks))
+      (task/background-task!
+       task-id
+       (fn [_exec-time]
+         (cond
+           (empty? @!system) (>!! @!event-channel (txt "System initialization Failed!"))
+           :else (try
+                   (if (m/validate form-spec @!form-state)
+                     (let [base [:table
+                                 [:thead
+                                  [:tr
+                                   [:th {:scope "col"} "Iteration"]
+                                   [:th {:scope "col"} "Time"]
+                                   [:th {:scope "col"} "Target"]
+                                   [:th {:scope "col"} "Transacted"]
+                                   [:th {:scope "col"} "In DB"]
+                                   [:th {:scope "col"} "Total in DB"]]]]
+                           opts (set/rename-keys
+                                 @!form-state
+                                 {:spreadsheet :path})]
+                       (when-not (chan/closed? @!event-channel)
+                         (if-let [data (not-empty (:data @!form-state))]
+                           (let [pfn  (fn [info]
+                                        [:section
+                                         (conj base
+                                               [:tbody
+                                                [:tr
+                                                 [:th {:scope "row"} (:iteration info)]
+                                                 [:th {:scope "row"} (:time info)]
+                                                 [:th {:scope "row"} (:target info)]
+                                                 [:th {:scope "row"} (:transacted info)]
+                                                 [:th {:scope "row"} (:in-db info)]
+                                                 [:th {:scope "row"} (:total-in-db info)]]
+                                                (when (and (:transacted info) (:target info))
+                                                  [:tr
+                                                   [:td {:scope   "row"
+                                                         :colspan "6"}
+                                                    [:progress {:value (let [at  (if (:interval info)
+                                                                                   (* (:index info) (:interval info))
+                                                                                   (+ (:in-db info) (:transacted info)))
+                                                                             rio (/ at (:target info))
+                                                                             prc (* rio 100)]
+                                                                         (int prc))
+                                                                :max   100}]]])
+                                                (when (:completed? true)
+                                                  [:tr
+                                                   [:td {:scope   "row"
+                                                         :colspan "6"}
+                                                    [:i [:strong "Transaction Completed"]]]])])])
+                                 opts (assoc opts :post-process (comp >!! pfn))
+                                 tx!  (some-> @!system
+                                              (assoc-in [:config :components/place :google-api]
+                                                        (:google-api opts))
+                                              (tx/fetch->tx! data opts))]
+                             (when (= :ok tx!)
+                               (>!! :transaction-complete
+                                    (pfn {:completed?  true
+                                          :total-in-db (tx/places (:db/geocodes @!system) :count? true)}))
+                               (swap! task/!tasks dissoc task-id)))
+                           (>!!  (txt "No data found to fetch!")))))
+                     (when-not (chan/closed? @!event-channel)
+                       (>!!  (txt "Invalid Form State!"))))
+                   (catch Exception e
+                     (println (.getMessage e))
+                     (pp/pprint e)
+                     (>!!  :transact-complete (txt (.getMessage e))))))
+         (a/close! @!event-channel))))))
