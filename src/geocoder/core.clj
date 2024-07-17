@@ -28,6 +28,8 @@
     :parse-fn #(-> % parse-long int)]
    ["-e" "--end END_AT" "Stop Gettting items at this position of the parsed data"
     :parse-fn #(-> % parse-long int)]
+   ["-k" "--key API_KEY" "Google's Map API KEY"
+    :parse-fn str]
    ["-t" "--trial?" "Does a trial run on the parsed data"]
    ["-w" "--web?"   "Start a web server."]
    ["-h" "--help"   "Prints this help summary"]])

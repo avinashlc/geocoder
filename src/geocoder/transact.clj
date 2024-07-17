@@ -10,8 +10,7 @@
             [geocoder.util :as util]
             [tick.core :as t]
             [xtdb.api :as xt]
-            [xtdb.query :as query]
-            [clojure.java.shell :as sh]))
+            [xtdb.query :as query]))
 
 (defmethod query/aggregate 'group->count [_]
   (fn aggregate-group->count
@@ -169,12 +168,16 @@
       t?       :trial?
       log      :logger
       pfn      :post-process
+      api-key  :key
       :as      opts}]
   (println "Fetchind data from Google's api for " (count data) " items. And the specification as below: ")
   (pprint/pprint (dissoc opts :data))
   (let [conf    (some-> sys
                         :config
-                        :components/place)
+                        :components/place
+                        (update :google-api #(or (not-empty api-key) %)))
+        _       (assert (map? (:location (gc/geometry! conf "India")))
+                        "Invalid API KEY")
         node    (:db/geocodes system)
         datf    (cond->> data
                   (number? total) (take total)
@@ -216,7 +219,8 @@
                     (inner! !dup-tracker item)
                     (summ !dup-tracker iter-info)))]
     (if-not interval
-      (worker! dup! datp {:at 0 :iteration (str 0 " __ " (count datp))})
+      (worker! dup! datp {:at        0
+                          :iteration (str 0 " __ " (count datp))})
       (doseq [[n part] datp
               :let     [iter-at (+ (* n (or interval 1)) (or initial 0))
                         iter-nx (+ (* (inc n) (or interval 1)) (or initial 0))

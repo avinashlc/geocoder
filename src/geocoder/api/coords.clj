@@ -68,8 +68,9 @@
 
 (defn- -geocode-get-req! [config params]
   (let [geocode-url (:geocode-url config)
-        api-key (:google-api config)
-        res (client/get geocode-url {:query-params (assoc params :key api-key)})]
+        api-key     (:google-api config)
+        _           (assert (false? (empty? api-key)) "Invalid API key")
+        res         (client/get geocode-url {:query-params (assoc params :key api-key)})]
     (-> res :body json/read-json)))
 
 (def geocode-get-req!
