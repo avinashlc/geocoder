@@ -1,7 +1,9 @@
 (ns geocoder.web.pages.main
   (:require [geocoder.util :as util]
+            [geocoder.web.helpers :as hlp]
             [geocoder.web.htmx :refer [$$]]
-            [geocoder.web.pages.meta :refer [<meta>]]))
+            [geocoder.web.pages.meta :refer [<meta>]]
+            [malli.core :as m]))
 
 (defn info [data]
   (let [row   (fn [[state count]]
@@ -44,11 +46,21 @@
            :style      ($$ {:margin  "0 auto"
                             :padding "0"})}
           [:main.container
-           [:header
-            [:h1 [:i "GEOCODER!!"]]
-            [:h1 [:button.outline {:hx-get "/reset"
-                                   :style  ($$ {:color "salmon"})}
-                  "reset form!"]]]
+           [:header {:style ($$ {:display         "flex"
+                                 :flex-wrap       "nowrap"
+                                 :flex-direction  "row"
+                                 :justify-content "space-between"
+                                 :align-items     "center"})}
+            [:h1
+             [:button.outline {:hx-get "/reset"
+                               :style  ($$ {:color "salmon"})}
+              "reset form!"]]
+            [:h1 [:a {:href "/form"} [:i "GEOCODER!!"]]]
+            [:h1
+             [:a {:href "/stat"}
+              [:button.outline
+               {:style ($$ {:color "yellow"})}
+               "Stats!"]]]]
            body
            (some-> aps :db/info not-empty info)]))
 
@@ -126,23 +138,29 @@
 
 (defn stat
   [& {!state :form/state
+      ?fs     :form/spec
       :as    args}]
   (<> args
-      [:article
-       (basic-table @!state)
-       [:div {:id "stat-sse"}
-        [:section
-         [:button.outline
-          {:hx-get    "/transaction/cancel"
-           :id        "transaction-handler"
-           :style     ($$ {:color "salmon"})
-           :hx-target "#stat-sse"
-           :hx-swap   "innerHTML"}
-          "cancel transaction :c"]]
-        [:div {:id          "sse-container"
-               :hx-ext      "sse"
-               :sse-connect "/transaction/sse"}
-         [:section {:sse-swap "message"}]
-         [:div {:id        "sse-exit"
-                :sse-swap  "transaction-complete"
-                :hx-target "#stat-sse"}]]]]))
+      (if (m/validate ?fs @!state)
+        [:article
+         (basic-table @!state)
+         [:div {:id "stat-sse"}
+          [:section
+           [:button.outline
+            {:hx-get    "/transaction/cancel"
+             :id        "transaction-handler"
+             :style     ($$ {:color "salmon"})
+             :hx-target "#stat-sse"
+             :hx-swap   "innerHTML"}
+            "cancel transaction :c"]]
+          [:div {:id          "sse-container"
+                 :hx-ext      "sse"
+                 :sse-connect "/transaction/sse"}
+           [:section {:sse-swap "message"}]
+           [:div {:id        "sse-exit"
+                  :sse-swap  "transaction-complete"
+                  :hx-target "#stat-sse"}]]]]
+        [:article
+         [:pre {:style ($$ {:color   "salmon"
+                            :padding "1rem"})}
+          [:strong "Inadequate data provided to do a transaction. Please fill the form!"]]])))

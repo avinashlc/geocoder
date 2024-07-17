@@ -1,4 +1,4 @@
-FROM clojure
+FROM alpine
 
 WORKDIR /usr/src/app
 ARG IM_VERSION=7.1.1-13
@@ -10,6 +10,9 @@ ENV AWS_REGION="ap-south-1"
 
 COPY . .
 
-RUN clojure -T:build uber
+RUN apk add --no-cache clojure font-noto font-noto-cjk font-noto-extra
 
-CMD java -jar target/geocoder-0.0.1-standalone.jar -w
+# RUN clojure -T:build uber
+
+# CMD java -jar target/geocoder-0.0.1-standalone.jar -w
+CMD clojure -M:run-w -w

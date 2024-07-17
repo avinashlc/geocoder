@@ -10,7 +10,8 @@
             [geocoder.util :as util]
             [tick.core :as t]
             [xtdb.api :as xt]
-            [xtdb.query :as query]))
+            [xtdb.query :as query]
+            [clojure.java.shell :as sh]))
 
 (defmethod query/aggregate 'group->count [_]
   (fn aggregate-group->count
@@ -153,6 +154,10 @@
                             :subdistrict/name
                             :village/name))))
 
+(defn clear-screen! []
+  (print (str (char 27) "[H" (char 27) "[2J"))
+  (flush))
+
 (defn fetch->tx!
   "1. Takes the parsed data 
    2. injects **grid and geocodes info** to the villages, by using *google's geocode api*
@@ -202,6 +207,7 @@
                                      :transacted  (- dbc tc)
                                      :total-in-db dbc}
                                     iter-info)]
+                    (clear-screen!)
                     (if (fn? pfn)
                       (pfn info)
                       (pprint/print-table [info]))))
